@@ -6,12 +6,12 @@ DEBUG = True
 def plotter(points , convex,  rect, intersection):
     plt.scatter(*zip(*points), s=10)
     for v, w in zip(convex[:-1], convex[1:]):
-        plt.plot((v[0],w[0]), (v[1],w[1]), linewidth = 6, marker='', color='r')
+        plt.plot((v[0],w[0]), (v[1],w[1]), linewidth = 1, marker='', color='r')
 
     rect_convex = rect_corners(rect)
     rect_convex.append(rect_convex[0])
     for v, w in zip(rect_convex[:-1], rect_convex[1:]):
-        plt.plot((v[0],w[0]), (v[1],w[1]), linewidth = 4, marker='', color='g')
+        plt.plot((v[0],w[0]), (v[1],w[1]), linewidth = 1, marker='', color='g')
 
     plt.fill(*zip(*intersection), 'k', alpha=0.3)
     plt.show()
@@ -52,6 +52,13 @@ def get_convexes_intersection(convex, rect):
             intersection += connect_points_via_rect_corners(rect, intersection[-1], points[0])
         intersection += points
 
+    if len(intersection) < 2:
+        if any(v for v in convex if v[0]<rect["left"]) and any(v for v in convex if v[0]>rect["right"]) and\
+            any(v for v in convex if v[1] < rect["down"]) and any(v for v in convex if v[1] > rect["up"]):
+            nree = rect_corners(rect) + [(rect_corners(rect)[0])]
+            return nree
+        else:
+            return []
     points = rect_line_intersection(rect, convex[0], convex[1])
     if len(points) > 0 and points[0] == intersection[0] and in_rect(rect, convex[0]):
         return intersection + [points[0]]
@@ -126,6 +133,7 @@ def lines_intersection(line1, line2):
     d = (det(*line1), det(*line2))
     x = det(d, xdiff) / div
     y = det(d, ydiff) / div
+
     if in_line(line1, (x,y)) and in_line(line2,(x,y)):
         return (x, y)
 
@@ -134,7 +142,7 @@ def lines_intersection(line1, line2):
 
 def rect_line_intersection(rect, start_line, end_line):
     intersection = [lines_intersection((start_line,end_line),line) for line in rect_lines(rect)]
-    intersection = [intersect for intersect in intersection if intersect is not None]
+    intersection = list(set([intersect for intersect in intersection if intersect is not None]))
     intersection.sort(key=lambda p: (p[0] - start_line[0])**2 + (p[1]-start_line[1]) ** 2)
     if in_rect(rect,end_line) and end_line not in intersection:
         intersection.append(end_line)
@@ -181,4 +189,4 @@ result = get_convex_size(intersection)
 print(result)
 if(DEBUG):
     create_test(result)
-    plotter(points,convex_hull, rect, intersection)
+plotter(points,convex_hull, rect, intersection)
