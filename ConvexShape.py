@@ -2,150 +2,167 @@ import matplotlib.pyplot as plt
 import sys  # command args
 
 DEBUG = True
+infinitimal = 0.000001
+class point:
+    def __init__(self,x,y):
+        self.x = x
+        self.y = y
+    def __eq__(self, other):
+        if(other == None):
+            return False
+        return abs(self.x - other.x) < infinitimal and abs(self.y - other.y) < infinitimal
+    def __hash__(self):
+        return hash((self.x,self.y))
 
-def plotter(points , convex,  rect, intersection):
-    plt.scatter(*zip(*points), s=10)
-    for v, w in zip(convex[:-1], convex[1:]):
-        plt.plot((v[0],w[0]), (v[1],w[1]), linewidth = 1, marker='', color='r')
 
-    rect_convex = rect_corners(rect)
-    rect_convex.append(rect_convex[0])
-    for v, w in zip(rect_convex[:-1], rect_convex[1:]):
-        plt.plot((v[0],w[0]), (v[1],w[1]), linewidth = 1, marker='', color='g')
+class line:
+    def __init__(self, start, end):
+        self.start = start
+        self.end = end
 
-    plt.fill(*zip(*intersection), 'k', alpha=0.3)
+    def inside(self, point):
+        return 0 <= point.x - min(self.start.x, self.end.x) <= max(self.start.x, self.end.x) - min(self.start.x, self.end.x) and \
+               0 <= point.y - min(self.start.y, self.end.y) <= max(self.start.y, self.end.y) - min(self.start.y, self.end.y)
+
+
+class convex:
+    def __init__(self, points):
+        self._points = points
+        self.lines =  [line(v,w) for v,w in zip(self._points[:-1],self._points[1:])]
+        self.points = points[:-1]
+    def __len__(self):
+        return len(self.points)
+
+class rect:
+    def __init__(self, up, down, left, right):
+        self.up = up
+        self.down = down
+        self.left = left
+        self.right = right
+        if down >= up or left >= right:
+            print("0.0")
+            exit()
+        self.corners = [point(left,down),point(right,down),point(right,up),point(left,up)]
+        self.lines = [line(v,w) for v,w in zip(self.corners[:-1],self.corners[1:])]
+        self.lines.append(line(self.corners[-1],self.corners[0]))
+        self.c = convex(self.corners + [self.corners[0]])
+
+    def inside(self, point):
+        return self.left <= point.x <= self.right and self.down <= point.y <= self.up
+
+def plotter(points , c,  r, intersection):
+    scatter_points = [(point.x, point.y) for point in points]
+    plt.scatter(*zip(*scatter_points), s=10)
+    for line in c.lines:
+        plt.plot((line.start.x,line.end.x), (line.start.y,line.end.y), linewidth = 1, marker='', color='r')
+
+    for line in r.lines:
+        plt.plot((line.start.x, line.end.x), (line.start.y, line.end.y), linewidth=1, marker='', color='g')
+
+    scatter_intersection = [(point.x, point.y) for point in intersection.points]
+    plt.fill(*zip(*scatter_intersection), 'k', alpha=0.3)
     plt.show()
 
 
-def orientation(lineStart, lineEnd, point):
-    return (lineEnd[0] - lineStart[0])*(point[1] - lineStart[1]) - (point[0] - lineStart[0])*(lineEnd[1] - lineStart[1])
+def orientation(l, p):
+    return (l.end.x - l.start.x)*(p.y - l.start.y) - (p.x - l.start.x)*(l.end.y - l.start.y)
 
 
 def get_convex_hull(points):
-    points.sort(key=lambda tup: (tup[0],tup[1]))
+    points.sort(key=lambda tup: (tup.x,tup.y))
     lower_convex_points = points[0:2]
     upper_convex_points = points[0:2]
 
-    for point in points[2:]:
-        if point == lower_convex_points[-1]:
+    for p in points[2:]:
+        if p == lower_convex_points[-1]:
             continue
-        while len(lower_convex_points) > 1 and orientation(lower_convex_points[-2],lower_convex_points[-1], point) < 0:
+        while len(lower_convex_points) > 1 and orientation(line(lower_convex_points[-2],lower_convex_points[-1]), p) <= 0:
             lower_convex_points.pop()
-        lower_convex_points.append(point)
+        lower_convex_points.append(p)
 
-        while len(upper_convex_points) > 1 and orientation(upper_convex_points[-2],upper_convex_points[-1], point) > 0:
+        while len(upper_convex_points) > 1 and orientation(line(upper_convex_points[-2],upper_convex_points[-1]), p) >= 0:
             upper_convex_points.pop()
-        upper_convex_points.append(point)
+        upper_convex_points.append(p)
 
-    return lower_convex_points + upper_convex_points[-2::-1]
-
-
-def get_convex_size(convex):
-    return 0.5 * sum(v[0]*w[1] - v[1]*w[0] for v, w in zip(convex[:-1], convex[1:]))
+    return convex(lower_convex_points + upper_convex_points[-2::-1])
 
 
-def get_convexes_intersection(convex, rect):
+def get_convex_size(c):
+    return 0.5 * sum(l.start.x*l.end.y - l.start.y*l.end.x for l in c.lines)
+
+
+def get_convexes_intersection(c, r):
     intersection = []
-    for v,w in zip(convex[:-1], convex[1:]):
-        points = rect_line_intersection(rect,v,w)
-        if not in_rect(rect, v) and len(points)>0 and len(intersection)>0:
-            intersection += connect_points_via_rect_corners(rect, intersection[-1], points[0])
+    for l in c.lines:
+        points = rect_line_intersection(r,l)
+        if not r.inside(l.start) and len(points)>0 and len(intersection)>0:
+            intersection += connect_points_via_rect_corners(r, line(intersection[-1], points[0]))
         intersection += points
 
     if len(intersection) < 2:
-        if any(v for v in convex if v[0]<rect["left"]) and any(v for v in convex if v[0]>rect["right"]) and\
-            any(v for v in convex if v[1] < rect["down"]) and any(v for v in convex if v[1] > rect["up"]):
-            nree = rect_corners(rect) + [(rect_corners(rect)[0])]
-            return nree
-        else:
-            return []
-    points = rect_line_intersection(rect, convex[0], convex[1])
-    if len(points) > 0 and points[0] == intersection[0] and in_rect(rect, convex[0]):
-        return intersection + [points[0]]
+        r_inters = [lines_intersection(convex_line,rect_line,False) for convex_line in c.lines for rect_line in r.lines]
+        r_inters = [p for p in r_inters if p != None]
+        if  any(p for p in r_inters if p.y == r.up and p.x <= r.left) and any(p for p in r_inters if p.y == r.up and p.x >= r.right) and \
+            any(p for p in r_inters if p.y == r.down and p.x <= r.left) and any(p for p in r_inters if p.y == r.down and p.x >= r.right) and \
+            any(p for p in r_inters if p.x == r.left and p.y <= r.down) and any(p for p in r_inters if p.x == r.left and p.y >= r.up) and \
+            any(p for p in r_inters if p.x == r.right and p.y <= r.down) and any(p for p in r_inters if p.x == r.right and p.y >= r.up):
+            return r.c
+        return convex([])
+
+    points = rect_line_intersection(r, c.lines[0])
+    if len(points) > 0 and points[0] == intersection[0] and r.inside(c.points[0]):
+        intersection.append(points[0])
+        return convex(intersection)
     printer("continue")
     printer(intersection)
     if intersection[0] != intersection[-1]:
-        intersection += connect_points_via_rect_corners(rect, intersection[-1], intersection[0]) + [intersection[0]]
+        intersection += connect_points_via_rect_corners(r, line(intersection[-1], intersection[0]))
+        intersection.append(intersection[0])
 
-    return intersection
+    return convex(intersection)
 
-def dot(vA, vB):
-    return vA[0]*vB[0]+vA[1]*vB[1]
+def dot(p1, p2):
+    return p1.x * p2.x + p1.y * p2.y
 
-def ang(lineA, lineB):
-    # Get nicer vector form
-    vA = [(lineA[0][0]-lineA[1][0]), (lineA[0][1]-lineA[1][1])]
-    vB = [(lineB[0][0]-lineB[1][0]), (lineB[0][1]-lineB[1][1])]
-    # Get dot prod
-    dot_prod = dot(vA, vB)
-    # Get magnitudes
-    magA = dot(vA, vA)**0.5
-    magB = dot(vB, vB)**0.5
-    # Get cosine value
-    return dot_prod/magA/magB
+def det(p1, p2):
+    return p1.x * p2.y - p1.y * p2.x
 
-def connect_points_via_rect_corners(rect, start, end):
-    relevant_corners = []
-    for corner in rect_corners(rect) :
-        if orientation(start, end, corner) < 0:
-            pass
+def angle(lineA, lineB):
+    lA = point(lineA.start.x-lineA.end.x, lineA.start.y-lineA.end.y)
+    lB = point(lineB.start.x-lineB.end.x, lineB.start.y-lineB.end.y)
 
-    relevant_corners = [corner for corner in rect_corners(rect) if orientation(start,end,corner) < 0]
+    return dot(lA, lB)/(dot(lA, lA)**0.5)/(dot(lB, lB)**0.5)
+
+def connect_points_via_rect_corners(r, l):
+    relevant_corners = [corner for corner in r.corners if orientation(l,corner) < 0]
     assert len(relevant_corners) < 4
 
-    relevant_corners.sort(key=lambda point: ang((start,end),(end,point)))
+    relevant_corners.sort(key=lambda point: angle(l,line(l.end,point)))
     return relevant_corners
 
+def lines_intersection(line1, line2, in_line_2 = True):
+    xdiff = point(line1.start.x - line1.end.x, line2.start.x - line2.end.x)
+    ydiff = point(line1.start.y - line1.end.y, line2.start.y - line2.end.y)
 
-def rect_corners(rect):
-    if rect_corners.corners == None:
-        rect_corners.corners = [(rect["left"],rect["down"]),(rect["right"],rect["down"]),
-                                (rect["right"],rect["up"]),(rect["left"],rect["up"])]
-    return rect_corners.corners
-rect_corners.corners = None
-
-
-def rect_lines(rect):
-    if rect_lines.lines == None:
-        rect_lines.lines = [a for a in zip(rect_corners(rect), rect_corners(rect)[1:] + [rect_corners(rect)[0]])]
-    return rect_lines.lines
-rect_lines.lines = None
-
-
-def in_rect(rect, point):
-    return rect["left"] <= point[0] <= rect["right"] and rect["down"] <= point[1] <= rect["up"]
-
-
-def lines_intersection(line1, line2):
-    xdiff = (line1[0][0] - line1[1][0], line2[0][0] - line2[1][0])
-    ydiff = (line1[0][1] - line1[1][1], line2[0][1] - line2[1][1]) #Typo was here
-
-    def det(a, b):
-        return a[0] * b[1] - a[1] * b[0]
-
-    def in_line(line, point):
-        return  0 <= point[0] - min(line[0][0], line[1][0]) <= max(line[0][0], line[1][0]) - min(line[0][0], line[1][0]) and \
-                 0 <= point[1] - min(line[0][1], line[1][1]) <= max(line[0][1], line[1][1]) - min(line[0][1], line[1][1])
     div = det(xdiff, ydiff)
     if div == 0:
        return None
 
-    d = (det(*line1), det(*line2))
-    x = det(d, xdiff) / div
-    y = det(d, ydiff) / div
+    d = point(det(line1.start,line1.end), det(line2.start,line2.end))
+    intersection = point(det(d, xdiff) / div, det(d, ydiff) / div)
 
-    if in_line(line1, (x,y)) and in_line(line2,(x,y)):
-        return (x, y)
+    if line1.inside(intersection) and ((not in_line_2) or line2.inside(intersection)):
+        return intersection
 
     return None
 
 
-def rect_line_intersection(rect, start_line, end_line):
-    intersection = [lines_intersection((start_line,end_line),line) for line in rect_lines(rect)]
+def rect_line_intersection(r, l):
+    intersection = [lines_intersection(l,rect_line) for rect_line in r.lines]
     intersection = list(set([intersect for intersect in intersection if intersect is not None]))
-    intersection.sort(key=lambda p: (p[0] - start_line[0])**2 + (p[1]-start_line[1]) ** 2)
-    if in_rect(rect,end_line) and end_line not in intersection:
-        intersection.append(end_line)
+    intersection.sort(key=lambda p: (p.x - l.start.x)**2 + (p.y-l.start.y) ** 2)
+    if r.inside(l.end) and l.end not in intersection:
+        intersection.append(l.end)
     return intersection
 
 
@@ -153,12 +170,12 @@ def read_points():
     with open(sys.argv[1]) as f:
         numbers = [int(x) for x in next(f).split()]
         assert len(numbers) == numbers[0] * 2 + 1
-        return [(x,y) for x,y in zip(numbers[1::2],numbers[2::2])]
+        return [point(x,y) for x,y in zip(numbers[1::2],numbers[2::2])]
 
 def read_rect():
     with open(sys.argv[2]) as f:
         right,up,left,down = [int(x) for x in next(f).split()]
-        return {"up":up,"right":right,"left":left,"down":down}
+        return rect(up,down,left,right)
 
 def printer(s):
     if(DEBUG):
@@ -180,13 +197,19 @@ if len(sys.argv) == 4 and sys.argv[3] == 'DEBUG':
     DEBUG = False
 
 points = read_points()
-rect = read_rect()
+r = read_rect()
+
+
 convex_hull = get_convex_hull(points)
+if len(convex_hull) < 3:
+    print(0.0)
+    exit()
+
 printer(convex_hull)
-intersection = get_convexes_intersection(convex_hull, rect)
+intersection = get_convexes_intersection(convex_hull, r)
 printer(intersection)
 result = get_convex_size(intersection)
 print(result)
 if(DEBUG):
     create_test(result)
-plotter(points,convex_hull, rect, intersection)
+    plotter(points,convex_hull, r, intersection)
