@@ -159,7 +159,7 @@ def lines_intersection(line1, line2, in_line_2 = True):
 
 def rect_line_intersection(r, l):
     intersection = [lines_intersection(l,rect_line) for rect_line in r.lines]
-    intersection = list(set([intersect for intersect in intersection if intersect is not None]))
+    intersection = list(set([intersect for intersect in intersection if intersect is not None and intersect != l.start]))
     intersection.sort(key=lambda p: (p.x - l.start.x)**2 + (p.y-l.start.y) ** 2)
     if r.inside(l.end) and l.end not in intersection:
         intersection.append(l.end)
