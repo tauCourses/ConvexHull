@@ -3,13 +3,13 @@ from random import randint
 
 j = 0
 while j<10000:
-    up = randint(-1000,1000)
-    left = randint(-1000,1000)
-    down = randint(-1000,up)
-    right = randint(left,1000)
+    up = randint(-50,50)
+    left = randint(-50,50)
+    down = randint(-50,up)
+    right = randint(left,50)
     points = []
-    for i in range(randint(0, 50)):
-        points.append((randint(-1000,1000),randint(-1000,1000)))
+    for i in range(randint(0, 20)):
+        points.append((randint(-50,50),randint(-50,50)))
 
     with open("a", "w") as f:
         f.write("%d" % len(points))
@@ -18,18 +18,24 @@ while j<10000:
     with open("b", "w") as f:
         f.write("%d %d %d %d" % (right,up,left,down))
 
-    p = Popen(['python3', 'ConvexShape.py', 'a', 'b', 'DEBUG'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    output1, err = p.communicate()
+    p = Popen(['python3', 'ConvexShape.py', 'b', 'a'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+    output1, err = p.communicate() #0
 
     p = Popen(['java', '-jar', 'Assignment1b.jar', 'b', 'a'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
-    output2, err = p.communicate()
+    output2, err = p.communicate() #2886
 
-    if abs(float(output1) - float(output2)) > 0.00001:
-        print("excepted %f got %f" % (float(output1), float(output2)))
-        print("(%s\n %d %d %d %d)" % (str(points), right, up, left,down))
+
+    try:
+        if abs(float(output1) - float(output2)) > 0.00001:
+            print("excepted %f got %f" % (float(output1), float(output2)))
+            print("(%s\n %d %d %d %d)" % (str(points), right, up, left,down))
+            break
+    except:
+        print("(%s\n %d %d %d %d)" % (str(points), right, up, left, down))
+        print("%d %s %s" % (j, output1, output2))
         break
-
-    print(j)
     j+=1
+
+print("end")
 
 

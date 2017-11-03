@@ -1,7 +1,5 @@
-import matplotlib.pyplot as plt
 import sys  # command args
 
-DEBUG = True
 infinitimal = 0.000001
 class point:
     def __init__(self,x,y):
@@ -33,6 +31,7 @@ class convex:
     def __len__(self):
         return len(self.points)
 
+
 class rect:
     def __init__(self, up, down, left, right):
         self.up = up
@@ -49,19 +48,6 @@ class rect:
 
     def inside(self, point):
         return self.left <= point.x <= self.right and self.down <= point.y <= self.up
-
-def plotter(points , c,  r, intersection):
-    scatter_points = [(point.x, point.y) for point in points]
-    plt.scatter(*zip(*scatter_points), s=10)
-    for line in c.lines:
-        plt.plot((line.start.x,line.end.x), (line.start.y,line.end.y), linewidth = 1, marker='', color='r')
-
-    for line in r.lines:
-        plt.plot((line.start.x, line.end.x), (line.start.y, line.end.y), linewidth=1, marker='', color='g')
-
-    scatter_intersection = [(point.x, point.y) for point in intersection.points]
-    plt.fill(*zip(*scatter_intersection), 'k', alpha=0.3)
-    plt.show()
 
 
 def orientation(l, p):
@@ -113,19 +99,21 @@ def get_convexes_intersection(c, r):
     if len(points) > 0 and points[0] == intersection[0] and r.inside(c.points[0]):
         intersection.append(points[0])
         return convex(intersection)
-    printer("continue")
-    printer(intersection)
+
     if intersection[0] != intersection[-1]:
         intersection += connect_points_via_rect_corners(r, line(intersection[-1], intersection[0]))
         intersection.append(intersection[0])
 
     return convex(intersection)
 
+
 def dot(p1, p2):
     return p1.x * p2.x + p1.y * p2.y
 
+
 def det(p1, p2):
     return p1.x * p2.y - p1.y * p2.x
+
 
 def angle(lineA, lineB):
     lA = point(lineA.start.x-lineA.end.x, lineA.start.y-lineA.end.y)
@@ -133,12 +121,14 @@ def angle(lineA, lineB):
 
     return dot(lA, lB)/(dot(lA, lA)**0.5)/(dot(lB, lB)**0.5)
 
+
 def connect_points_via_rect_corners(r, l):
     relevant_corners = [corner for corner in r.corners if orientation(l,corner) < 0]
     assert len(relevant_corners) < 4
 
     relevant_corners.sort(key=lambda point: angle(l,line(l.end,point)))
     return relevant_corners
+
 
 def lines_intersection(line1, line2, in_line_2 = True):
     xdiff = point(line1.start.x - line1.end.x, line2.start.x - line2.end.x)
@@ -167,49 +157,25 @@ def rect_line_intersection(r, l):
 
 
 def read_points():
-    with open(sys.argv[1]) as f:
+    with open(sys.argv[2]) as f:
         numbers = [int(x) for x in next(f).split()]
         assert len(numbers) == numbers[0] * 2 + 1
         return [point(x,y) for x,y in zip(numbers[1::2],numbers[2::2])]
 
+
 def read_rect():
-    with open(sys.argv[2]) as f:
+    with open(sys.argv[1]) as f:
         right,up,left,down = [int(x) for x in next(f).split()]
         return rect(up,down,left,right)
-
-def printer(s):
-    if(DEBUG):
-        print(s)
-
-def create_test(result):
-    s = '(['
-    with open('points.txt') as points:
-        numbers = [int(x) for x in next(points).split()]
-        s += ','.join(['(%d,%d)' % (x, y) for x, y in zip(numbers[1::2], numbers[2::2])])
-    s += '],('
-    with open('rect.txt') as rect:
-        s += ','.join([x for x in next(rect).split()])
-
-    s += '), %s),' % str(result)
-    print(s)
-
-if len(sys.argv) == 4 and sys.argv[3] == 'DEBUG':
-    DEBUG = False
 
 points = read_points()
 r = read_rect()
 
-
 convex_hull = get_convex_hull(points)
 if len(convex_hull) < 3:
     print(0.0)
-    exit()
+else:
+    intersection = get_convexes_intersection(convex_hull, r)
+    result = get_convex_size(intersection)
+    print(result)
 
-printer(convex_hull)
-intersection = get_convexes_intersection(convex_hull, r)
-printer(intersection)
-result = get_convex_size(intersection)
-print(result)
-if(DEBUG):
-    create_test(result)
-    plotter(points,convex_hull, r, intersection)
