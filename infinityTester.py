@@ -2,14 +2,15 @@ from subprocess import Popen, PIPE
 from random import randint
 
 j = 0
+bound =10
 while j<10000:
-    up = randint(-50,50)
-    left = randint(-50,50)
-    down = randint(-50,up)
-    right = randint(left,50)
+    up = randint(-bound,bound)
+    left = randint(-bound,bound)
+    down = randint(-bound,up)
+    right = randint(left,bound)
     points = []
     for i in range(randint(0, 20)):
-        points.append((randint(-50,50),randint(-50,50)))
+        points.append((randint(-bound,bound),randint(-bound,bound)))
 
     with open("a", "w") as f:
         f.write("%d" % len(points))

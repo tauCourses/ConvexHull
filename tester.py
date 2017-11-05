@@ -37,7 +37,7 @@ def run_tests(tests):
         with open("b", "w") as f:
             f.write("%d %d %d %d" % (test[1][0],test[1][1],test[1][2],test[1][3]))
 
-        p = Popen(['python3', 'ConvexShape.py', 'a', 'b', 'DEBUG'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
+        p = Popen(['python3', 'ConvexShape.py', 'b', 'a', 'DEBUG'], stdin=PIPE, stdout=PIPE, stderr=PIPE)
         output, err = p.communicate()
         if abs(float(output) - float(test[2])) > 0.00001:
             print("excepted %f got %f" % (test[2], float(output)))
